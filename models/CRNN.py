@@ -26,7 +26,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 
-def data_consistency(k, k0, mask, tau=None):
+def data_consistency(x, k0, mask, tau=None):
     """
     See the reference for the details of this operation.
     The basic idea is that if a point is smapled, we take the linear combination
@@ -39,12 +39,12 @@ def data_consistency(k, k0, mask, tau=None):
     mask: the mask which gives the positions that were sampled or not
 
     """
-    tau = tau
+    tau = tau # regualarisation parameter
     if tau:
-        out = (1 - mask) * k + mask * (k + tau * k0) / (1 + tau)
+        output = (1 - mask) * x + mask * (x + tau * k_0) / (1 + tau)
     else:
-        out = (1 - mask) * k + mask * k0
-    return out
+        output = (1 - mask) * x + mask * k_0
+    return output
 
 class Data_Consistency(nn.Module):
     """
@@ -60,27 +60,30 @@ class Data_Consistency(nn.Module):
     def __init__(self, tau=None, norm='ortho'):
         super(Data_Consistency, self).__init__()
         self.tau = tau
-        self.normalized = norm == 'ortho'
+        self.normalized = norm == 'ortho' # needed for FFT
 
     def forward(self, *input, **kwargs):
         return self.perform(*input)
 
     def perform(self, x, k_0, mask):
         """
-        x: input in the image domain, shape: (N, 2, x, y, [,nt])
-        k0: initially sampled k-space data
+        x: input in the image domain, shape: (N, 2, x, y, T)
+        k_0: initially sampled k-space data
         mask: the mask we use which tells which points were sampled which were not
         """
-
-        if x.dim() == 4: # input is 2D
+        #2D data
+        if x.dim() == 4:
             x    = x.permute(0, 2, 3, 1)
             k_0   = k_0.permute(0, 2, 3, 1)
             mask = mask.permute(0, 2, 3, 1)
-        elif x.dim() == 5: # input is 3D
+        #3D data    
+        elif x.dim() == 5: 
             x    = x.permute(0, 4, 2, 3, 1)
             k_0   = k_0.permute(0, 4, 2, 3, 1)
             mask = mask.permute(0, 4, 2, 3, 1)
 
+        # See the paper for more information
+        # F^T * diagoanl matrix * F * x
         k = torch.fft(x, 2, normalized=self.normalized)
         out = data_consistency(k, k_0, mask, self.tau)
         output = torch.ifft(out, 2, normalized=self.normalized)
@@ -173,7 +176,7 @@ BCRNN(nn.Module):
         """
 
 
-        T, N_batch, nc, X, Y = input.shape
+        T, N_batch, channels, X, Y = input.shape # T, N_batch, channels, x, y
         hidden_size = [N_batch, self.hidden_channel, X, Y]
         if mode:
             with torch.no_grad():
@@ -210,7 +213,7 @@ BCRNN(nn.Module):
 class CRNN_MRI(nn.Module):
     """
     Model for Dynamic MRI Reconstruction using Convolutional Neural Networks
-    Parameters
+    Parameters. See the paper for more information
     -----------------------
          N_channels: number of channels
          N_filters: number of filters
@@ -242,9 +245,9 @@ class CRNN_MRI(nn.Module):
         self.batchnorm = nn.BatchNorm2d(N_filters)
         self.batchnorm3 = nn.BatchNorm3d(N_channels)
 
-        dcs = []
+        DC = []
         for i in range(N_iterations):
-            dcs.append(Data_Consistency(norm='ortho', tau=0.2))
+            DC.append(Data_Consistency(norm='ortho', tau=0.2))
         self.dcs = dcs
 
     def forward(self, x, k, m, mode=False):
@@ -297,7 +300,7 @@ class CRNN_MRI(nn.Module):
             net['t%d_out'%i] = net['t%d_out'%i].view(-1,n_batch, N_channels, width, height)
             net['t%d_out'%i] = net['t%d_out'%i].permute(1,2,3,4,0)
             net['t%d_out'%i].contiguous()
-            net['t%d_out'%i] = self.dcs[i-1].perform(net['t%d_out'%i], k, m)
+            net['t%d_out'%i] = self.DC[i-1].perform(net['t%d_out'%i], k, m)
             x = net['t%d_out'%i]
             #x = self.batchnorm3(x)
 
