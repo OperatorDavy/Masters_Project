@@ -56,14 +56,7 @@ def training_loop(n_epochs, optimizer, model, loss_fn, train_loader):
         loss_vec.append(loss_train)
         print(i)
         print('{} Epoch {}, Training loss {}'.format(datetime.datetime.now(), epoch, float(loss_train)))
-        prediction = model(test_point, k_point, mask_point, test=True)
-        prediction = prediction.to('cpu')
-        prediction = prediction.detach()
-        prediction = prediction.float()
-        print(prediction.shape)
-        plt.imshow(np.sqrt(prediction[0,0,:,:,0]**2 + prediction[0,1,:,:,0]**2), cmap='gray')
-        plt.show()
-        del prediction
+        
 
         # I save all the weights after the Epoch
         # Change the variables if you want for the name of the saved files
