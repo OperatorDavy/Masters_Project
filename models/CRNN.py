@@ -1,3 +1,31 @@
+"""
+MRI Convolutional Recurrent Neural Network.
+
+Author: David Wilson. 2019.
+Email: david.wilson7@outlook.com
+
+References:
+"Convolutional Recurrent Neural Networks for Dynamic MR Image Reconstruction"
+Chen Qin, Jo Schlemper, Jose Caballero, Anthony Price, Joseph V. Hajnal, Daniel Rueckert
+"""
+# Import packages needed
+import numpy as np
+import matplotlib.pyplot as plt
+import h5py
+import scipy.io
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils
+from torch.autograd import Variable
+
+# For using cuda GPU
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
+
+
 def data_consistency(k, k0, mask, tau=None):
     """
     See the reference for the details of this operation.
