@@ -1,5 +1,5 @@
 """
-U-net for De-aliasing MR images.
+Residual U-net for De-aliasing MR images.
 
 Author: David Wilson. 2019
 Email: david.wilson7@outlook.com
