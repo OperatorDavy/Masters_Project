@@ -3,7 +3,7 @@ import datetime
 import torch
 
 '''
-The training loop used for training the models.
+The training loop used for training the CRNN.
 The parameters and names depend on a person's preference.
 '''
 
