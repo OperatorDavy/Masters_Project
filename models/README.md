@@ -1,4 +1,9 @@
-The codes for the networks are given in the unet.py and CRNN.py. The rest are clean scripts to show the implementation of the models
+# The scripts for the model
+These are the clean versions of the model parts. 
+
+# Contents:
+
+
 
 ## U-net architecture
 
