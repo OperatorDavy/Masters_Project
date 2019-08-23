@@ -5,11 +5,13 @@ def complex_to_real(x, axis=1):
     axis: representst the real and complex channel.
     """
     shape = x.shape
-    if dtype == np.complex64
+    if x.dtype == np.complex64:
         dtype = np.float32
     else:
-        dtype = np.ascontiguousarray(x).view(dtype=dtype).reshape(shape+(2,))
-    x = x.ndim
+        dtype = np.float64
+    
+    x = np.ascontiguousarray(x).view(dtype=dtype).reshape(shape+(2,))
+    n = x.ndim
     if axis < 0:
         axis = n + axis
     if axis < n:
@@ -18,7 +20,7 @@ def complex_to_real(x, axis=1):
     return x
 
 
-def to_tenor_format(x, fake_imaginary=False):
+def to_tensor_format(x, fake_imaginary=False):
     """"
     Takes the data as of shape (N [,T], x, y), T is the sequence times
     reshapse to (n, N_channels, x, t, T)
@@ -26,7 +28,8 @@ def to_tenor_format(x, fake_imaginary=False):
     if x.ndim == 4:
         x = np.transpose(x, (0,2,3,1))
 
-    if fake_imainary:
+    if fake_imaginary:
+        # Add zero as the imaginary parts
         x = x*(1+0j)
 
     x = complex_to_real(x)
