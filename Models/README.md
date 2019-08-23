@@ -2,6 +2,8 @@
 These are the clean versions of the model parts. 
 
 # Contents:
+unet: scripts for the unet training
+crnn: scritps for the crnn training
 
 
 
