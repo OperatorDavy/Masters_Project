@@ -7,7 +7,9 @@ I used jupyter notebooks in the Google cloud for training of all the models, so 
 
 ### Contents
 Models: Contatins the scripts for our models, the training loop scripts. 
-Results: Contatins the jupyter notebooks.
+
+Results: Contatins the jupyter notebooks that trained and tested the networks.
+
 Data: Contatins the Matlab scripts for genereating the synthetic training data. Note that I did not put the actual data-set used, since they are medical and there are many complicated issues if I shared them. Also, the gridding file which has all the code for the gridding is not provided, this is because the file was too large for github and it seems to be proprietary code, so I chose not to actually put it there.
 
 
