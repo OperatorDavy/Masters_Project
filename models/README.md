@@ -6,5 +6,7 @@ The codes for the networks are given in the unet.py and CRNN.py. The rest are cl
 
 
 ## CRNN architecture
+Figure taken from Convolutional Recurrent Neural Networks for Dynamic MR Image Reconstruction
+Chen Qin, Jo Schlemper, Jose Caballero, Anthony Price, Joseph V. Hajnal, Daniel Rueckert
 
 ![](crnn.png)
