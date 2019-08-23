@@ -26,35 +26,43 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 
-def data_consistency(x, k0, mask, tau=None):
-    """
-    See the reference for the details of this operation.
-    The basic idea is that if a point is smapled, we take the linear combination
-    between the CNN prediction and the original measurements, weighted by the levle of noise.
-    If the point is not sampled then we use the output of the network.
-    ---------------------------------------------
+import numpy as np
+import matplotlib.pyplot as plt
+import h5py
+import scipy.io
 
-    x: input which is the k-space data
-    k0: initial k-space data
-    mask: the mask which gives the positions that were sampled or not
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils
+from torch.autograd import Variable
 
+# For using cuda GPU
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
+
+
+def data_consistency(k, k_0, mask, tau=None):
     """
-    tau = tau # regualarisation parameter
-    if tau:
-        output = (1 - mask) * x + mask * (x + tau * k_0) / (1 + tau)
-    else:
-        output = (1 - mask) * x + mask * k_0
+    k    - input in k-space
+    k0   - initially sampled elements in k-space
+    mask - corresponding nonzero location
+    """
+    lambda = tau
+    if lambda:  
+        output = (1 - mask) * k + mask * (k + lambda * k_0) / (1 + lambda)
+    else:  
+        output = (1 - mask) * k + mask * k_0
     return output
 
 class Data_Consistency(nn.Module):
     """
     Data Consistency layer
-
     See the reference for the details of this operation.
     The basic idea is that if a point is smapled, we take the linear combination
     between the CNN prediction and the original measurements, weighted by the levle of noise.
     If the point is not sampled then we use the output of the network.
-
     """
 
     def __init__(self, tau=None, norm='ortho'):
@@ -140,7 +148,7 @@ class CRNN(nn.Module):
 
         return hidden
 
-BCRNN(nn.Module):
+class BCRNN(nn.Module):
     """
     Bidirectional convolutional recurrent units evolving over time and iterations
     ---------------------
@@ -172,7 +180,6 @@ BCRNN(nn.Module):
         and W_t represents the filters of recurrent convolutions evolving over time.
         forward and backward is the direction of the hidden representation.
         ---------------
-
         """
 
 
@@ -220,7 +227,6 @@ class CRNN_MRI(nn.Module):
          kernel_size: kernel size
          N_iterations: number of iterations
          N_units: number of CRNN/BCRNN/CNN layers in each iteration
-
     """
     def __init__(self, N_channels=2, N_filters=64, kernel_size=3, N_iterations=10, N_units=5):
 
@@ -248,12 +254,11 @@ class CRNN_MRI(nn.Module):
         DC = []
         for i in range(N_iterations):
             DC.append(Data_Consistency(norm='ortho', tau=0.2))
-        self.dcs = dcs
+        self.DC = DC
 
     def forward(self, x, k, m, mode=False):
         """
         x, y, m: input image, k-spce data, mask, shape: (N_batch, 2, x, y, T)
-
         mode - True: the model is in test mode, False: train mode
         """
         net = {}
