@@ -1,3 +1,9 @@
+'''
+Functions used during data processing.
+Note that complex data was used and in some instances phase data was 
+faked from magnitude images by setting the imaginary parts to zero.
+'''
+
 def complex_to_real(x, axis=1):
     """
     Converts complex data to a data with 2 channels with real data
