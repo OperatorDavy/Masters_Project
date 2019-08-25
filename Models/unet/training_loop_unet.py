@@ -7,18 +7,23 @@ The training loop used for training the U-net.
 The parameters and names depend on a person's preference.
 '''
 
-
-
 # Gets the GPU as device, So ,to(device) fo rall transfers
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 loss_vec = []
 def training_loop(n_epochs, optimizer, model, loss_fn, train_loader):
+    """
+    The Training loop which is used for training the models in PyTorch.
+    Need to define the number of epochs, the optimizer and model initially 
+    defined. the loss function defined and train_loader made which has the dataset
+    for PyTorch
+    """
     print('saving epoch {%d}'%0)
     #Saves the first initial model
     checkpoint = {'model': CRNN_MRI(), 'state_dict': model.state_dict(), 'optimizer' : optimizer.state_dict()}
     torch.save(checkpoint, 'checkpoint_crnn_13und_epoch__%d.pth'%0)
+    
     for epoch in range(1, n_epochs + 1):
         i = 0
         loss_train = 0
@@ -33,15 +38,13 @@ def training_loop(n_epochs, optimizer, model, loss_fn, train_loader):
             #Inputs to GPU
 
 
-            outputs = model(imgs, k, m)
+            outputs = model(imgs)
             loss = loss_fn(outputs, labels)
-
+            
+            # The next stops are how Pytorch uses the 
+            # Backprop and the optimisation to minimise the loss
             optimizer.zero_grad()
             loss.backward()
-
-            #Hard clipping of gradients to overcome
-            #the vanishing gradient problem
-            torch.nn.utils.clip_grad_value_(model.parameters(), 5)
 
             optimizer.step()
 
