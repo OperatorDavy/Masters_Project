@@ -31,9 +31,7 @@ def data_consistency(k, k_0, mask, tau=None):
     k0   - initially sampled elements in k-space
     mask - corresponding nonzero location
     """
-    # This is the regualrisation parameter
-    # lambda and tau are same thing
-    tau
+    # tau is the regualrisation parameter
     
     if tau:  
         output = (1 - mask) * k + mask * (k + tau * k_0) / (1 + tau)
