@@ -26,30 +26,16 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 
-import numpy as np
-import matplotlib.pyplot as plt
-import h5py
-import scipy.io
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
-from torch.autograd import Variable
-
-# For using cuda GPU
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(device)
-
-
 def data_consistency(k, k_0, mask, tau=None):
     """
     k    - input in k-space
     k0   - initially sampled elements in k-space
     mask - corresponding nonzero location
     """
+    # This is the regualrisation parameter
+    # lambda and tau are same thing
     lambda = tau
+    
     if lambda:  
         output = (1 - mask) * k + mask * (k + lambda * k_0) / (1 + lambda)
     else:  
@@ -75,7 +61,8 @@ class Data_Consistency(nn.Module):
 
     def perform(self, x, k_0, mask):
         """
-        x: input in the image domain, shape: (N, 2, x, y, T)
+        x: input in the image domain, shape: (N, 2, x, y, T) 
+                             {batch_size, channel_size, width, height, time-steps}
         k_0: initially sampled k-space data
         mask: the mask we use which tells which points were sampled which were not
         """
@@ -93,8 +80,8 @@ class Data_Consistency(nn.Module):
         # See the paper for more information
         # F^T * diagoanl matrix * F * x
         k = torch.fft(x, 2, normalized=self.normalized)
-        out = data_consistency(k, k_0, mask, self.tau)
-        output = torch.ifft(out, 2, normalized=self.normalized)
+        output = data_consistency(k, k_0, mask, self.tau)
+        output = torch.ifft(output, 2, normalized=self.normalized)
 
         if x.dim() == 4:
             output = output.permute(0, 3, 1, 2)
@@ -108,7 +95,7 @@ class CRNN(nn.Module):
     Convolutional recurrent units evolving over iterations only
     Parameters
     -----------------
-    inputs = input of the cell, 4D tensor, shape: (N_batch, channel, width, height)
+    input = input of the cell, 4D tensor, shape: (N_batch, channel, width, height)
     hiddenIteration = hidden states in the iteration dimension, 4D tensor, shape: (N_batch, hidden_channel, width, height)
     hiddenTempral = hidden states in the tmeporal dimension, 4D tensor, shape: (N_batch, hidden_channel, width, height)
     -----------------
@@ -152,8 +139,8 @@ class BCRNN(nn.Module):
     """
     Bidirectional convolutional recurrent units evolving over time and iterations
     ---------------------
-    inputs = input data, 5D tensor, shape: (time_steps, N_batch, channel, width, height)
-    inputIteration = hidden states form the previous iteration, 5D tensor, shape: (time_steps, N_batch, channel, width, height)
+    input = input data, 5D tensor, shape: (time_steps-T, N_batch, channel, width, height)
+    inputIteration = hidden states form the previous iteration, 5D tensor, shape: (time_steps-T, N_batch, channel, width, height)
     mode = If in test mode to remove the grad. False (training) or True (testing)
     ---------------------
     output---> output,
@@ -182,18 +169,19 @@ class BCRNN(nn.Module):
         ---------------
         """
 
-
         T, N_batch, channels, X, Y = input.shape # T, N_batch, channels, x, y
         hidden_size = [N_batch, self.hidden_channel, X, Y]
-        if mode:
+        
+        if mode: # If testing
             with torch.no_grad():
                 initial_hidden = Variable(torch.zeros(hidden_size)).cuda()
-        else:
+        else: # If training
             initial_hidden = Variable(torch.zeros(hidden_size)).cuda()
 
-        forward = []
-        backward = []
-        # forward
+        forward = [] # Forward representation
+        backward = [] # Forward representation
+        
+        # forward pass in time
         hidden = initial_hidden
         for i in range(T):
             hidden = self.CRNN_model(input[i], input_iteration[i], hidden)
@@ -201,14 +189,16 @@ class BCRNN(nn.Module):
 
         forward = torch.cat(forward)
 
-        # backward
+        # backward pass in time
         hidden = initial_hidden
         for i in range(T):
             hidden = self.CRNN_model(input[T - i - 1], input_iteration[T - i -1], hidden)
 
             backward.append(hidden)
         backward = torch.cat(backward[::-1])
-
+        
+        # The output representation which is the sum of 
+        # forward and the backward pass in time
         output = forward + backward
 
         if N_batch == 1:
@@ -237,7 +227,7 @@ class CRNN_MRI(nn.Module):
         self.kernel_size = kernel_size
 
         self.bcrnn = BCRNN(N_channels, N_filters, kernel_size)
-        self.conv1_x = nn.Conv2d(N_filters, N_filters, kernel_size, padding = 1)
+        self.conv1_x = nn.Conv2d(N_filters, N_filters, kernel_size, padding = 1) 
         self.conv1_h = nn.Conv2d(N_filters, N_filters, kernel_size, padding = 1)
 
         self.conv2_x = nn.Conv2d(N_filters, N_filters, kernel_size, padding = 1)
@@ -256,14 +246,15 @@ class CRNN_MRI(nn.Module):
             DC.append(Data_Consistency(norm='ortho', tau=0.2))
         self.DC = DC
 
-    def forward(self, x, k, m, mode=False):
+    def forward(self, input, k, m, mode=False):
         """
-        x, y, m: input image, k-spce data, mask, shape: (N_batch, 2, x, y, T)
+        input, y, m: input image, k-spce data, mask, shape: (N_batch, 2, X, Y, T)
+        note that the input and x are equivalent, so conv_x is the convolution from input
         mode - True: the model is in test mode, False: train mode
         """
-        net = {}
-        n_batch, N_channels, width, height, n_seq = x.size()
-        size_h = [n_seq*n_batch, self.N_filters, width, height]
+        network = {} # The network is a dictionary
+        n_batch, N_channels, width, height, n_seq = input.size()
+        size_h = [n_seq * n_batch, self.N_filters, width, height]
         if mode:
             with torch.no_grad():
                 hid_init = Variable(torch.zeros(size_h)).cuda()
@@ -271,51 +262,54 @@ class CRNN_MRI(nn.Module):
             hid_init = Variable(torch.zeros(size_h)).cuda()
 
         for j in range(self.N_units-1):
-            net['t0_x%d'%j]=hid_init
+            network['t0_x%d'%j]=hid_init
 
         for i in range(1,self.N_iterations+1):
 
-            x = x.permute(4,0,1,2,3)
-            x = x.contiguous()
-            net['t%d_x0' % (i - 1)] = net['t%d_x0' % (i - 1)].view(n_seq, n_batch,self.N_filters,width, height)
-            net['t%d_x0'%i] = self.bcrnn(x, net['t%d_x0'%(i-1)], mode)
-            net['t%d_x0'%i] = net['t%d_x0'%i].view(-1,self.N_filters,width, height)
+            input = input.permute(4,0,1,2,3)
+            input = input.contiguous()
+            
+            network['t%d_x0' % (i - 1)] = network['t%d_x0' % (i - 1)].view(n_seq, n_batch,self.N_filters,width, height)
+            # Applying the BCRNN
+            network['t%d_x0'%i] = self.bcrnn(input, network['t%d_x0'%(i-1)], mode)
+            network['t%d_x0'%i] = network['t%d_x0'%i].view(-1,self.N_filters,width, height)
+            # First CRNN
+            network['t%d_x1'%i] = self.conv1_x(network['t%d_x0'%i])
+            network['t%d_h1'%i] = self.conv1_h(network['t%d_x1'%(i-1)])
+            network['t%d_x1'%i] = self.relu(network['t%d_h1'%i] + network['t%d_x1'%i])
+            network['t%d_x1'%i] = self.batchnorm(network['t%d_x1'%i])
+            # Second CRNN
+            network['t%d_x2'%i] = self.conv2_x(network['t%d_x1'%i])
+            network['t%d_h2'%i] = self.conv2_h(network['t%d_x2'%(i-1)])
+            network['t%d_x2'%i] = self.relu(network['t%d_h2'%i] + network['t%d_x2'%i])
+            network['t%d_x2'%i] = self.batchnorm(network['t%d_x2'%i])
+            # Third CRNN
+            network['t%d_x3'%i] = self.conv3_x(network['t%d_x2'%i])
+            network['t%d_h3'%i] = self.conv3_h(network['t%d_x3'%(i-1)])
+            network['t%d_x3'%i] = self.relu(network['t%d_h3'%i] + network['t%d_x3'%i])
+            network['t%d_x3'%i] = self.batchnorm(network['t%d_x3'%i])
+            # Last CNN
+            network['t%d_x4'%i] = self.conv4_x(network['t%d_x3'%i])
 
+            input = input.view(-1,N_channels,width, height)
+            # Skip connection
+            network['t%d_out'%i] = input + network['t%d_x4'%i]
 
-            net['t%d_x1'%i] = self.conv1_x(net['t%d_x0'%i])
-            net['t%d_h1'%i] = self.conv1_h(net['t%d_x1'%(i-1)])
-            net['t%d_x1'%i] = self.relu(net['t%d_h1'%i]+net['t%d_x1'%i])
-            net['t%d_x1'%i] = self.batchnorm(net['t%d_x1'%i])
+            network['t%d_out'%i] = network['t%d_out'%i].view(-1,n_batch, N_channels, width, height)
+            network['t%d_out'%i] = network['t%d_out'%i].permute(1,2,3,4,0)
+            network['t%d_out'%i].contiguous()
+            # Data Consistency
+            network['t%d_out'%i] = self.DC[i-1].perform(network['t%d_out'%i], k, m)
+            input = network['t%d_out'%i]
+            #input = self.batchnorm3(input)
 
-            net['t%d_x2'%i] = self.conv2_x(net['t%d_x1'%i])
-            net['t%d_h2'%i] = self.conv2_h(net['t%d_x2'%(i-1)])
-            net['t%d_x2'%i] = self.relu(net['t%d_h2'%i]+net['t%d_x2'%i])
-            net['t%d_x2'%i] = self.batchnorm(net['t%d_x2'%i])
-
-            net['t%d_x3'%i] = self.conv3_x(net['t%d_x2'%i])
-            net['t%d_h3'%i] = self.conv3_h(net['t%d_x3'%(i-1)])
-            net['t%d_x3'%i] = self.relu(net['t%d_h3'%i]+net['t%d_x3'%i])
-            net['t%d_x3'%i] = self.batchnorm(net['t%d_x3'%i])
-
-            net['t%d_x4'%i] = self.conv4_x(net['t%d_x3'%i])
-
-            x = x.view(-1,N_channels,width, height)
-            net['t%d_out'%i] = x + net['t%d_x4'%i]
-
-            net['t%d_out'%i] = net['t%d_out'%i].view(-1,n_batch, N_channels, width, height)
-            net['t%d_out'%i] = net['t%d_out'%i].permute(1,2,3,4,0)
-            net['t%d_out'%i].contiguous()
-            net['t%d_out'%i] = self.DC[i-1].perform(net['t%d_out'%i], k, m)
-            x = net['t%d_out'%i]
-            #x = self.batchnorm3(x)
-
-            # clean up i-1
+            # In test mode, cleans up all previous recurrent iterations
             if mode:
-                to_delete = [ key for key in net if ('t%d'%(i-1)) in key ]
+                to_delete = [ key for key in network if ('t%d'%(i-1)) in key ]
 
-                for elt in to_delete:
-                    del net[elt]
+                for deletion in to_delete:
+                    del network[deletion]
 
                 torch.cuda.empty_cache()
 
-        return net['t%d_out'%i]
+        return network['t%d_out'%i]
