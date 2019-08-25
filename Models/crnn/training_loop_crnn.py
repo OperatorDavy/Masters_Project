@@ -7,14 +7,17 @@ The training loop used for training the CRNN.
 The parameters and names depend on a person's preference.
 '''
 
-
-
 # Gets the GPU as device, So ,to(device) fo rall transfers
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
 loss_vec = []
 def training_loop(n_epochs, optimizer, model, loss_fn, train_loader):
+    """
+    Trainign loop used to train the CRNN. 
+    You have to define the number of epochs.
+    You have to define the model, optimizer, loss function and the 
+    train loader which are defined before the training.
+    """
     print('saving epoch {%d}'%0)
     #Saves the first initial model
     checkpoint = {'model': CRNN_MRI(), 'state_dict': model.state_dict(), 'optimizer' : optimizer.state_dict()}
