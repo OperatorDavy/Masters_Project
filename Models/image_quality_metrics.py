@@ -1,11 +1,15 @@
 import numpy as np
 
-# MSE assessment
 def mse(x, y):
+    """
+    Mean Squared Error (MSE)
+    """
     return np.mean(np.abs(x - y)**2)
 
-# PSNR assesment
 def psnr(x, y):
+    """
+    Peak signal to noise ratio (PSNR)
+    """
 
     if x.dtype == np.uint8:
         max_intensity = 256
