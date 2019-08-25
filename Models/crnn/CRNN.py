@@ -1,9 +1,7 @@
 """
 MRI Convolutional Recurrent Neural Network.
-
 Author: David Wilson. 2019.
 Email: david.wilson7@outlook.com
-
 References:
 "Convolutional Recurrent Neural Networks for Dynamic MR Image Reconstruction"
 Chen Qin, Jo Schlemper, Jose Caballero, Anthony Price, Joseph V. Hajnal, Daniel Rueckert
@@ -35,10 +33,10 @@ def data_consistency(k, k_0, mask, tau=None):
     """
     # This is the regualrisation parameter
     # lambda and tau are same thing
-    lambda = tau
+    tau
     
-    if lambda:  
-        output = (1 - mask) * k + mask * (k + lambda * k_0) / (1 + lambda)
+    if tau:  
+        output = (1 - mask) * k + mask * (k + tau * k_0) / (1 + tau)
     else:  
         output = (1 - mask) * k + mask * k_0
     return output
@@ -278,7 +276,7 @@ class CRNN_MRI(nn.Module):
             network['T%d_X1' %i] = self.conv1_x(network['T%d_X0'%i])
             network['T%d_H1' %i] = self.conv1_h(network['T%d_X1'%(i-1)])
             network['T%d_X1' %i] = self.relu(network['T%d_H1'%i] + network['T%d_X1'%i])
-            network['T%d_X1' %i] = self.batchnorm(network['t%d_x1'%i])
+            network['T%d_X1' %i] = self.batchnorm(network['T%d_X1'%i])
             # Second CRNN
             network['T%d_X2' %i] = self.conv2_x(network['T%d_X1'%i])
             network['T%d_H2' %i] = self.conv2_h(network['T%d_X2'%(i-1)])
@@ -286,7 +284,7 @@ class CRNN_MRI(nn.Module):
             network['T%d_X2' %i] = self.batchnorm(network['T%d_X2'%i])
             # Third CRNN
             network['T%d_X3'%i] = self.conv3_x(network['T%d_X2'%i])
-            network['T%d_X3'%i] = self.conv3_h(network['T%d_X3'%(i-1)])
+            network['T%d_H3'%i] = self.conv3_h(network['T%d_X3'%(i-1)])
             network['T%d_X3'%i] = self.relu(network['T%d_H3'%i] + network['T%d_X3'%i])
             network['T%d_X3'%i] = self.batchnorm(network['T%d_X3'%i])
             # Last CNN
@@ -294,7 +292,7 @@ class CRNN_MRI(nn.Module):
 
             input = input.view(-1,N_channels,width, height)
             # Skip connection
-            network['T%d_out'%i] = input + network['T%d_X4'%i]
+            network['T%d_OUTPUT'%i] = input + network['T%d_X4'%i]
 
             network['T%d_OUTPUT'%i] = network['T%d_OUTPUT'%i].view(-1,n_batch, N_channels, width, height)
             network['T%d_OUTPUT'%i] = network['T%d_OUTPUT'%i].permute(1,2,3,4,0)
