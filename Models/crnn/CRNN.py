@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import h5py
 import scipy.io
 
+# Import packages for PyTorch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -257,59 +258,59 @@ class CRNN_MRI(nn.Module):
         size_h = [n_seq * n_batch, self.N_filters, width, height]
         if mode:
             with torch.no_grad():
-                hid_init = Variable(torch.zeros(size_h)).cuda()
+                initial_hidden = Variable(torch.zeros(size_h)).cuda()
         else:
-            hid_init = Variable(torch.zeros(size_h)).cuda()
+            initial_hidden = Variable(torch.zeros(size_h)).cuda()
 
         for j in range(self.N_units-1):
-            network['t0_x%d'%j]=hid_init
+            network['T0_X%d'%j] = initial_hidden
 
-        for i in range(1,self.N_iterations+1):
+        for i in range(1, self.N_iterations+1):
 
             input = input.permute(4,0,1,2,3)
             input = input.contiguous()
             
-            network['t%d_x0' % (i - 1)] = network['t%d_x0' % (i - 1)].view(n_seq, n_batch,self.N_filters,width, height)
+            network['T%d_X0' %(i-1)] = network['T%d_X0' % (i - 1)].view(n_seq, n_batch,self.N_filters,width, height)
             # Applying the BCRNN
-            network['t%d_x0'%i] = self.bcrnn(input, network['t%d_x0'%(i-1)], mode)
-            network['t%d_x0'%i] = network['t%d_x0'%i].view(-1,self.N_filters,width, height)
+            network['T%d_X0' %i] = self.bcrnn(input, network['T%d_X0'%(i-1)], mode)
+            network['T%d_X0' %i] = network['T%d_X0'%i].view(-1,self.N_filters,width, height)
             # First CRNN
-            network['t%d_x1'%i] = self.conv1_x(network['t%d_x0'%i])
-            network['t%d_h1'%i] = self.conv1_h(network['t%d_x1'%(i-1)])
-            network['t%d_x1'%i] = self.relu(network['t%d_h1'%i] + network['t%d_x1'%i])
-            network['t%d_x1'%i] = self.batchnorm(network['t%d_x1'%i])
+            network['T%d_X1' %i] = self.conv1_x(network['T%d_X0'%i])
+            network['T%d_H1' %i] = self.conv1_h(network['T%d_X1'%(i-1)])
+            network['T%d_X1' %i] = self.relu(network['T%d_H1'%i] + network['T%d_X1'%i])
+            network['T%d_X1' %i] = self.batchnorm(network['t%d_x1'%i])
             # Second CRNN
-            network['t%d_x2'%i] = self.conv2_x(network['t%d_x1'%i])
-            network['t%d_h2'%i] = self.conv2_h(network['t%d_x2'%(i-1)])
-            network['t%d_x2'%i] = self.relu(network['t%d_h2'%i] + network['t%d_x2'%i])
-            network['t%d_x2'%i] = self.batchnorm(network['t%d_x2'%i])
+            network['T%d_X2' %i] = self.conv2_x(network['T%d_X1'%i])
+            network['T%d_H2' %i] = self.conv2_h(network['T%d_X2'%(i-1)])
+            network['T%d_X2' %i] = self.relu(network['T%d_H2'%i] + network['T%d_X2'%i])
+            network['T%d_X2' %i] = self.batchnorm(network['T%d_X2'%i])
             # Third CRNN
-            network['t%d_x3'%i] = self.conv3_x(network['t%d_x2'%i])
-            network['t%d_h3'%i] = self.conv3_h(network['t%d_x3'%(i-1)])
-            network['t%d_x3'%i] = self.relu(network['t%d_h3'%i] + network['t%d_x3'%i])
-            network['t%d_x3'%i] = self.batchnorm(network['t%d_x3'%i])
+            network['T%d_X3'%i] = self.conv3_x(network['T%d_X2'%i])
+            network['T%d_X3'%i] = self.conv3_h(network['T%d_X3'%(i-1)])
+            network['T%d_X3'%i] = self.relu(network['T%d_H3'%i] + network['T%d_X3'%i])
+            network['T%d_X3'%i] = self.batchnorm(network['T%d_X3'%i])
             # Last CNN
-            network['t%d_x4'%i] = self.conv4_x(network['t%d_x3'%i])
+            network['T%d_X4'%i] = self.conv4_x(network['T%d_X3'%i])
 
             input = input.view(-1,N_channels,width, height)
             # Skip connection
-            network['t%d_out'%i] = input + network['t%d_x4'%i]
+            network['T%d_out'%i] = input + network['T%d_X4'%i]
 
-            network['t%d_out'%i] = network['t%d_out'%i].view(-1,n_batch, N_channels, width, height)
-            network['t%d_out'%i] = network['t%d_out'%i].permute(1,2,3,4,0)
-            network['t%d_out'%i].contiguous()
+            network['T%d_OUTPUT'%i] = network['T%d_OUTPUT'%i].view(-1,n_batch, N_channels, width, height)
+            network['T%d_OUTPUT'%i] = network['T%d_OUTPUT'%i].permute(1,2,3,4,0)
+            network['T%d_OUTPUT'%i].contiguous()
             # Data Consistency
-            network['t%d_out'%i] = self.DC[i-1].perform(network['t%d_out'%i], k, m)
-            input = network['t%d_out'%i]
+            network['T%d_OUTPUT'%i] = self.DC[i-1].perform(network['T%d_OUTPUT'%i], k, m)
+            input = network['T%d_OUTPUT'%i]
             #input = self.batchnorm3(input)
 
             # In test mode, cleans up all previous recurrent iterations
             if mode:
-                to_delete = [ key for key in network if ('t%d'%(i-1)) in key ]
+                to_delete = [key for key in network if ('T%d'%(i-1)) in key]
 
                 for deletion in to_delete:
                     del network[deletion]
 
                 torch.cuda.empty_cache()
 
-        return network['t%d_out'%i]
+        return network['T%d_OUTPUT'%i]
