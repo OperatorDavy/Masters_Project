@@ -21,6 +21,10 @@ See `REQUIREMENTS.txt` for a list of dependencies.
 ### Instructions:
 I did all the training and and assessment fo the results in the Google's cloud. I used jupyter notebooks. Each time, I load and prepare the results manually. This is because there was different data coming from different sources each one having some different shapes. This was the best approach to avoid making mistakes that can cause hours of GPU time or give bad results because the data is not in the correct shape.
 
+### Results:
+![](gifs/13x.gif)
+
+
 ### References
 -"Real‐time cardiovascular MR with spatio‐temporal artifact suppression using deep learning–proof of concept in congenital heart disease".
 Andreas Hauptmann  Simon Arridge  Felix Lucka  Vivek Muthurangu  Jennifer A. Steeden
