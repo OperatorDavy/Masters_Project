@@ -23,6 +23,8 @@ I did all the training and and assessment fo the results in the Google's cloud. 
 
 ### Results:
 ![](gifs/13x.gif)
+![](gifs/20x.gif)
+![](gifs/23x.gif)
 
 
 ### References
