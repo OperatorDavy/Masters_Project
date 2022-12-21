@@ -1,5 +1,4 @@
 # Improving deep-learning methods for inverse problems
-#### David Wilson
 This repository contains my codes and jupyter notebooks showing the results of my models.
 This code is part of MSc Scientific computing final project.
 I implemented two deep-learning models in PyTorch: U-net and convolutional recurrent neural network (CRNN).
